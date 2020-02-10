@@ -1,0 +1,22 @@
+version: '3.7'
+
+services:
+  controller:
+    container_name: mqtt-controller-${DEVICE_NAME}
+    image: mqtt-device-controller
+    build:
+      context: image
+    restart: unless-stopped
+    environment:
+      - BACKUP_DEVICE=${DEVICE_NAME}
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+      - MQTT_BROKER=${MQTT_BROKER:-broker}
+      - WAIT_BEFORE_STOP=${WAIT_BEFORE_STOP:-600}
+      - PYTHONUNBUFFERED=1
+  broker:
+    container_name: test-broker
+    image: eclipse-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
