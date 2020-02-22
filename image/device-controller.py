@@ -15,7 +15,7 @@ def topic_from(*args):
     is_first = True
     result = ""
     for arg in args:
-        if arg != None and arg != "":
+        if arg is not None and arg != "":
             if is_first:
                 result += arg
                 is_first = False
@@ -31,7 +31,7 @@ def topic_device_user(constants, device, user):
 def topic_device_user_len(constants):
     count = 2
     for arg in constants:
-        if arg != None and arg != "":
+        if arg is not None and arg != "":
             count += 1
     return count
 
@@ -44,7 +44,7 @@ def topic_device_user_match(constants, device, topic):
         constant_count = 0
         topic_count = 0
         for arg in constants:
-            if arg != None and arg != "":
+            if arg is not None and arg != "":
                 if arg != topic_split[topic_count]:
                     return False
                 topic_count += 1
@@ -59,7 +59,7 @@ def device_from(constants, topic):
     topic_split = topic.split("/")
     if len(topic_split) != topic_device_user_len(constants):
         return None
-    if constants[0] != None and constants[0] != "":
+    if constants[0] is not None and constants[0] != "":
         return topic_split[1]
     else:
         return topic_split[0]
@@ -71,7 +71,7 @@ def user_from(constants, topic):
         return None
     constant_count = 0
     for i in range(0, 3):
-        if constants[i] != None and constants[i] != "":
+        if constants[i] is not None and constants[i] != "":
             constant_count += 1
     return topic_split[1 + constant_count]
 
@@ -83,7 +83,7 @@ def topic_status(constants, device):
 def topic_status_len(constants):
     count = 1
     for arg in constants:
-        if arg != None and arg != "":
+        if arg is not None and arg != "":
             count += 1
     return count
 
@@ -96,7 +96,7 @@ def topic_status_match(constants, topic):
         constant_count = 0
         topic_count = 0
         for arg in constants:
-            if arg != None and arg != "":
+            if arg is not None and arg != "":
                 if arg != topic_split[topic_count]:
                     return False
                 topic_count += 1
@@ -111,7 +111,7 @@ def from_status_topic(constants, topic):
     if len(topic_split) != topic_status_len(constants):
         return None
     else:
-        if constants[0] != None and constants[0] != "":
+        if constants[0] is not None and constants[0] != "":
             return topic_split[1]
         else:
             return topic_split[0]
@@ -145,7 +145,7 @@ def send_device_list():
     else:
         send_string_waiting = "[" + ",".join(devices_waiting) + "]"
     time.sleep(1)
-    client.publish(topic_status_check, send_string, qos, False)
+    client.publish(topic_status_check + "/active", send_string, qos, False)
     client.publish(topic_status_check + "/waiting", send_string_waiting, qos, False)
 
 
@@ -158,6 +158,7 @@ def on_message(client, usr, msg):
     global i_started
     global wait_before_stop
     global timer
+    global disabled
 
     message = msg.payload.decode("utf-8").upper()
     topic = msg.topic
@@ -237,8 +238,28 @@ def on_message(client, usr, msg):
     ################################################
     # Handle active devices check
     ################################################
-    elif topic == controller_status_sub and message == "CHECK":
-        send_device_list()
+    elif topic == controller_status_sub:
+        # Update controller state
+        if message == "DISABLE" or message == "DISABLED":
+            print("    Setting controller state to disabled")
+            disabled = True
+        elif message == "ENABLE" or message == "ENABLED":
+            print("    Setting controller state to enabled")
+            disabled = False
+
+        # Send controller state
+        time.sleep(1)
+        if disabled:
+            print("    Sending current controller state: DISABLED")
+            client.publish(controller_status_pub, "DISABLED", qos, True)
+        else:
+            print("    Sending current controller state: ENABLED")
+            client.publish(controller_status_pub, "ENABLED", qos, True)
+
+        # Send active / waiting devices
+        if message == "CHECK":
+            send_device_list()
+
         return 0
     ################################################
     # Handle saving devices topics
@@ -250,8 +271,7 @@ def on_message(client, usr, msg):
         ################################################
         # Is device disabled?
         ################################################
-        disabled = os.environ.get('DEVICE_DISABLED')
-        if disabled is not None and disabled.lower() == "true":
+        if disabled:
             if message == "CHECK" or message == "START_BOOT" or message == "START_RUN":
                 print("    Device is disabled, sending this as reply.")
                 time.sleep(1)
@@ -415,6 +435,17 @@ def on_connect(client, userdata, flags, rc):
         print("    Subscribing to topic", user_status_topic)
         client.subscribe(user_status_topic, qos)
         print("    Subscribed!")
+
+        # Publish initial state
+        topic_status_check_pub = topic_status(topic_status_pub_constants, device)
+        if disabled:
+            print("    Publishing initial state: DISABLED")
+            client.publish(topic_status_check_pub, "DISABLED", qos, True)
+        else:
+            print("    Publishing initial state: ENABLED")
+            client.publish(topic_status_check_pub, "ENABLED", qos, True)
+
+        print("    Done!")
     else:
         print("[C] Bad connection: Returned code=", rc)
 
@@ -428,9 +459,18 @@ def on_disconnect(client, userdata, rc):
 #####################################################
 def interrupt_handler(sig, frame):
     print("Received interrupt, terminating...")
+
+    # Set state via retained message
+    topic = topic_status(topic_status_pub_constants, device)
+    client.publish(topic, "DISABLED", qos, True)
+
+    client.loop_stop()
     client.disconnect()
-    if (timer != None):
+
+    if timer is not None:
         timer.cancel()
+
+    print("Done")
     exit()
 
 
@@ -446,6 +486,11 @@ wait_before_stop = int(os.getenv('WAIT_BEFORE_STOP', "600"))
 state = "OFF"
 i_started = False
 timer = None
+disabled_str = os.environ.get('DEVICE_DISABLED')
+if disabled_str is None:
+    disabled = False
+else:
+    disabled = disabled_str.lower() == "true"
 
 # Topic template
 topic_device_pre = os.getenv('MQTT_TOPIC_DEVICE_PRE', "device")
@@ -589,7 +634,7 @@ for arg in arg_it:
         print("Use \'", sys.argv[0], " -h\' to print available arguments.")
         exit()
 
-if device == None:
+if device is None:
     print("Name of controlled device needs to be specified")
     exit()
 
@@ -605,6 +650,8 @@ client.on_message = on_message
 # client.on_subscribe = on_subscribe
 client.on_connect = on_connect
 client.on_disconnect = on_disconnect
+# Set last will
+client.will_set(topic_status(topic_status_pub_constants, device), "DISABLED", qos, True)
 
 # Set username and password
 if user_set and password_set:
