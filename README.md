@@ -17,6 +17,7 @@ The current state of active devices and users is also observed in order to handl
 ## Related projects
 - [MQTT device status](https://github.com/lunarys/mqtt-device-status): Send the online state of devices via MQTT.
 - [MQTT wake-on-lan](https://github.com/lunarys/mqtt-wake-on-lan): Start remote devices using wake-on-lan.
+- [MQTT shutdown trigger](https://github.com/lunarys/mqtt-shutdown-trigger): Shut down devices remotely.
 - The [vbackup](https://github.com/lunarys/vbackup) backup can interact with this controller.
 - A [standalone client](https://github.com/lunarys/mqtt-device-controller-client) can be used to interact with the controller from the command line.
 
