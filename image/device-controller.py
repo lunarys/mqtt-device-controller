@@ -127,7 +127,6 @@ def stop_device():
     client.publish(topic_status(topic_device_status_pub_constants, device), "OFF", qos, False)
 
     # In case device does not shut down immediately
-    state = "OFF"
     timer = None
 
 
