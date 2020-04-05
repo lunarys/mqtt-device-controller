@@ -208,6 +208,7 @@ def on_message(client, usr, msg):
             print("    Clearing waiting devices list")
             devices = []
             devices_waiting = []
+            send_device_list()
             if timer is not None:
                 print("    Stopping active timer")
                 timer.cancel()
