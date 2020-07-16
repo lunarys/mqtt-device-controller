@@ -146,6 +146,8 @@ def send_device_list():
     time.sleep(1)
     client.publish(topic_status_check + "/active", send_string, qos, False)
     client.publish(topic_status_check + "/waiting", send_string_waiting, qos, False)
+    client.publish(topic_status_check + "/active/count", str(len(devices)), qos, False)
+    client.publish(topic_status_check + "/waiting/count", str(len(devices_waiting)), qos, False)
 
 
 #####################################################
