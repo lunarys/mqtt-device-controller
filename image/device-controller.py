@@ -157,6 +157,7 @@ def on_message(client, usr, msg):
     global devices
     global devices_waiting
     global i_started
+    global wait_after_start
     global wait_before_stop
     global timer
     global disabled
@@ -401,10 +402,11 @@ def on_message(client, usr, msg):
     if state == "ON" and len(devices) == 0 and i_started and timer is None:
         # Shut down device
         if just_started:
-            print("    Device started, setting timeout of", wait_before_stop, "seconds for users to connect...")
+            print("    Device started, setting timeout of", wait_after_start, "seconds for users to connect...")
+            timer = Timer(wait_after_start, stop_device)
         else:
             print("    All users are done, awaiting timeout of", wait_before_stop, "seconds before shutdown...")
-        timer = Timer(wait_before_stop, stop_device)
+            timer = Timer(wait_before_stop, stop_device)
         timer.start()
 
 
@@ -483,7 +485,8 @@ devices = []
 devices_waiting = []
 # Store manages devices name
 device = os.environ.get('BACKUP_DEVICE')
-wait_before_stop = int(os.getenv('WAIT_BEFORE_STOP', "600"))
+wait_after_start = int(os.getenv('WAIT_AFTER_START', "600"))
+wait_before_stop = int(os.getenv('WAIT_BEFORE_STOP', "300"))
 # Store backup device state
 state = "OFF"
 i_started = False
