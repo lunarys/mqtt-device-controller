@@ -34,6 +34,7 @@ Everything can be configured via the docker-compose `.env` file, which is provid
 | MQTT_QOS | 1 | The quality of service for the MQTT broker. |
 | WAIT_AFTER_START | 600 | The amount of seconds to wait for users after the device started. |
 | WAIT_BEFORE_STOP | 300 | The amount of seconds to wait before shutting down the controlled device after all users are done. |
+| MINIMUM_RUN_TIME | 600 | Keep the device running for at least this amount of seconds. Enables shorter times for WAIT_BEFORE_STOP. |
 
 More options are theoretically supported to change subscription and publishing topics, but not listed here.
 

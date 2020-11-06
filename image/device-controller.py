@@ -157,8 +157,10 @@ def on_message(client, usr, msg):
     global devices
     global devices_waiting
     global i_started
+    global start_time
     global wait_after_start
     global wait_before_stop
+    global minimum_run_time
     global timer
     global disabled
 
@@ -186,6 +188,7 @@ def on_message(client, usr, msg):
             print("    Device is now online, notifying waiting devices...")
             send_msg = "CHECK"
             just_started = True
+            start_time = int(time.time())
         elif message == "OFFLINE" or message == "CRASHED":
             if state == "OFF":
                 print("    Device was already offline, doing nothing...")
@@ -402,11 +405,24 @@ def on_message(client, usr, msg):
     if state == "ON" and len(devices) == 0 and i_started and timer is None:
         # Shut down device
         if just_started:
-            print("    Device started, setting timeout of", wait_after_start, "seconds for users to connect...")
-            timer = Timer(wait_after_start, stop_device)
+            if minimum_run_time > wait_after_start:
+                wait_time = minimum_run_time
+            else:
+                wait_time = wait_after_start
+
+            print("    Device started, setting timeout of", wait_time, "seconds for users to connect...")
         else:
-            print("    All users are done, awaiting timeout of", wait_before_stop, "seconds before shutdown...")
-            timer = Timer(wait_before_stop, stop_device)
+            current_time = int(time.time())
+            running_time = current_time - start_time
+
+            if running_time + wait_before_stop < minimum_run_time:
+                wait_time = minimum_run_time - running_time
+            else:
+                wait_time = wait_before_stop
+
+            print("    All users are done, awaiting timeout of", wait_time, "seconds before shutdown...")
+
+        timer = Timer(wait_time, stop_device)
         timer.start()
 
 
@@ -487,9 +503,11 @@ devices_waiting = []
 device = os.environ.get('BACKUP_DEVICE')
 wait_after_start = int(os.getenv('WAIT_AFTER_START', "600"))
 wait_before_stop = int(os.getenv('WAIT_BEFORE_STOP', "300"))
+minimum_run_time = int(os.getenv('MINIMUM_RUN_TIME', "600"))
 # Store backup device state
 state = "OFF"
 i_started = False
+start_time = 0
 timer = None
 disabled_str = os.environ.get('DEVICE_DISABLED')
 if disabled_str is None:
